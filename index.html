@@ -1,0 +1,732 @@
+<!doctype html><html lang="pt"><head><meta charset="utf-8"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Contador de Folhas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one column shop-floor tool; tabs on top, numbered steps, dark result band that reads from a distance */
+:root{
+  --bg:#eceff3; --surface:#ffffff; --surface-2:#f5f7fa; --ink:#15202c; --muted:#5a6676; --line:#d3d9e1;
+  --accent:#2445a8; --accent-ink:#ffffff; --accent-soft:#e3e9fb;
+  --panel:#15202c; --panel-fg:#f3f5f8; --panel-muted:#a3afbe; --signal:#f5b800;
+  --ok:#1d7f48; --ok-soft:#e1f3e8; --warn:#a45a06; --warn-soft:#fdf0dc; --bad:#b4371a; --bad-soft:#fbe6e0;
+  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e141b; --surface:#17202a; --surface-2:#1d2733; --ink:#e7ecf2; --muted:#94a1b2; --line:#2b3746;
+  --accent:#7d9cff; --accent-ink:#0e141b; --accent-soft:#1f2b4a;
+  --panel:#0a0f15; --panel-fg:#f3f5f8; --panel-muted:#93a0b0; --signal:#f5b800;
+  --ok:#5cc98a; --ok-soft:#173326; --warn:#f0a648; --warn-soft:#3a2a12; --bad:#ff8a6b; --bad-soft:#3a1d16; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e141b; --surface:#17202a; --surface-2:#1d2733; --ink:#e7ecf2; --muted:#94a1b2; --line:#2b3746;
+  --accent:#7d9cff; --accent-ink:#0e141b; --accent-soft:#1f2b4a;
+  --panel:#0a0f15; --panel-fg:#f3f5f8; --panel-muted:#93a0b0; --signal:#f5b800;
+  --ok:#5cc98a; --ok-soft:#173326; --warn:#f0a648; --warn-soft:#3a2a12; --bad:#ff8a6b; --bad-soft:#3a1d16; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45}
+.wrap{max-width:860px;margin:0 auto;padding-block:16px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:16px}
+.view{display:flex;flex-direction:column;gap:16px}
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--f-display);font-size:30px;letter-spacing:.01em;margin:0;line-height:1;text-wrap:balance}
+h1 small{display:block;font-family:var(--f-body);font-weight:500;font-size:14px;color:var(--muted);letter-spacing:0;margin-top:6px}
+h2{font-family:var(--f-display);font-size:21px;margin:0;letter-spacing:.01em;text-wrap:balance}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px;flex-wrap:wrap}
+.tab{border:0;background:none;color:var(--muted);font:600 15px var(--f-body);padding:9px 14px;border-radius:7px;cursor:pointer;display:flex;gap:6px;align-items:center}
+.tab[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.badge{background:var(--signal);color:#15202c;font-size:12px;font-weight:700;border-radius:99px;padding:0 7px;min-width:20px;text-align:center}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.step{display:flex;gap:10px;align-items:baseline}
+.step .n{font-family:var(--f-display);font-size:15px;color:var(--accent-ink);background:var(--accent);border-radius:6px;padding:1px 8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+label.f{display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:14px;min-width:0}
+label.f span.h{font-weight:400;color:var(--muted);font-size:13px}
+input,select{font:500 18px var(--f-body);color:var(--ink);background:var(--surface-2);border:1.5px solid var(--line);border-radius:8px;padding:11px 12px;width:100%;min-width:0}
+select:disabled{opacity:.55}
+input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+input.big{font:600 30px var(--f-mono);padding:10px 14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{font:600 15px var(--f-body);border-radius:8px;padding:11px 16px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{border-color:transparent;background:none;color:var(--accent);padding-inline:4px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.seg{display:inline-flex;border:1.5px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--surface-2);color:var(--muted);font:600 16px var(--f-body);padding:0 16px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.hint{color:var(--muted);font-size:14px}
+.spec{font-family:var(--f-mono);font-size:14px;color:var(--muted);background:var(--surface-2);border-radius:8px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center}
+.spec b{color:var(--ink);font-weight:500}
+.note{border-radius:10px;padding:12px 14px;font-size:15px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.note.warn{background:var(--warn-soft);border:1px solid color-mix(in srgb,var(--warn) 35%,transparent)}
+.note.bad{background:var(--bad-soft);border:1px solid color-mix(in srgb,var(--bad) 35%,transparent)}
+.note.ok{background:var(--ok-soft);border:1px solid color-mix(in srgb,var(--ok) 35%,transparent)}
+.result{background:var(--panel);color:var(--panel-fg);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:14px}
+.result .lbl{font:600 13px var(--f-body);text-transform:uppercase;letter-spacing:.08em;color:var(--panel-muted)}
+.result .num{font:700 clamp(56px,14vw,96px)/0.95 var(--f-display);color:var(--signal);font-variant-numeric:tabular-nums}
+.result .num small{font-size:.32em;color:var(--panel-fg);margin-left:8px;font-weight:600}
+.result .pm{font:500 18px var(--f-mono);font-variant-numeric:tabular-nums}
+.result .empty{font-size:18px;color:var(--panel-muted);padding-block:10px}
+.result .foot{font:500 14px var(--f-body);color:var(--panel-muted)}
+.rbar{position:relative;height:34px;margin-top:4px}
+.rbar .track{position:absolute;left:0;right:0;top:12px;height:10px;border-radius:5px;background:color-mix(in srgb,var(--signal) 28%,transparent)}
+.rbar .mid{position:absolute;top:4px;width:4px;height:26px;background:var(--signal);border-radius:2px;transform:translateX(-2px)}
+.rlab{display:flex;justify-content:space-between;font:500 13px var(--f-mono);color:var(--panel-muted);font-variant-numeric:tabular-nums;gap:8px}
+.rlab span:nth-child(2){color:var(--panel-fg)}
+.list{display:flex;flex-direction:column;gap:10px}
+.item{border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;background:var(--surface)}
+.item .t{font-weight:700;font-size:17px}
+.item .meta{font-size:14px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 14px}
+.chip{font:600 12px var(--f-body);border-radius:99px;padding:2px 8px;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+.chip.pend,.chip.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.chip.bad{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.chip.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.filters button{font:600 14px var(--f-body);border:1.5px solid var(--line);background:var(--surface);color:var(--muted);border-radius:99px;padding:6px 12px;cursor:pointer}
+.filters button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.stat{background:var(--surface-2);border-radius:10px;padding:12px 14px}
+.stat b{display:block;font:700 28px var(--f-display);font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--muted)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:760px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:13px;letter-spacing:.02em;color:var(--muted);background:var(--surface-2);font-weight:600}
+td.n,th.n{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+td.w{white-space:normal;min-width:180px}
+tr:last-child td{border-bottom:0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:8px;font-weight:600;z-index:10;max-width:calc(100% - 32px)}
+.brand{display:flex;align-items:center;gap:14px;min-width:0}
+.logo{background:#fff;border-radius:10px;padding:8px 12px;display:flex;align-items:center;border:1px solid var(--line);flex:none}
+.logo img{height:30px;width:auto;display:block}
+.dir{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dir button{font:600 16px var(--f-body);border:1.5px solid var(--line);background:var(--surface-2);color:var(--muted);border-radius:10px;padding:14px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.2}
+.dir button b{font:700 22px var(--f-display);letter-spacing:.01em;color:inherit}
+.dir button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.fmt{display:flex;align-items:center;gap:10px}
+.fmt input{text-align:center}
+.fmt .x{font:700 22px var(--f-display);color:var(--muted)}
+.opt{font:600 11px var(--f-body);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--surface-2);border:1px solid var(--line);border-radius:99px;padding:1px 8px;margin-left:4px;vertical-align:middle}
+.unit{display:flex;align-items:center;justify-content:center;min-width:76px;padding:0 14px;border-radius:8px;background:var(--accent-soft);color:var(--accent);font:700 18px var(--f-body)}
+@media (max-width:560px){.brand{flex-direction:column;align-items:flex-start;gap:10px}.logo img{height:26px}}
+.mail{font-family:var(--f-mono);font-size:13px;white-space:pre-wrap;background:var(--surface-2);border-radius:8px;padding:12px;border:1px solid var(--line);overflow-wrap:anywhere}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="logo"><img src="img/hinojosa.png" alt="Hinojosa" width="480" height="107"></span>
+      <h1>Contador de Folhas<small id="subtitle">Folhas de cartolina por palete, a partir da altura da pilha</small></h1>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="contar" aria-selected="true">Contar</button>
+      <button class="tab" role="tab" data-tab="converter" aria-selected="false">Kg ⇄ Folhas</button>
+      <button class="tab" role="tab" data-tab="pedidos" hidden>Pedidos <span class="badge" id="pedBadge" hidden>0</span></button>
+      <button class="tab" role="tab" data-tab="base" hidden>Base de dados</button>
+    </nav>
+  </header>
+
+  <div id="dbBanner" class="note warn" hidden><strong>Sem ligação à base de dados.</strong><span>Abra a aplicação com sessão iniciada no Claude. Até lá pode contar por amostra de 100 folhas.</span></div>
+  <div id="loading" class="hint">A carregar a base de dados de cartolinas…</div>
+
+  <!-- ===================== CONTAR ===================== -->
+  <section id="v-contar" class="view">
+    <div class="card" id="cardLista">
+      <div class="step"><span class="n">1</span><h2>Cartolina</h2></div>
+      <div class="grid">
+        <label class="f">Fornecedor<select id="selForn"></select></label>
+        <label class="f">Gramagem (g/m²)<select id="selGram" disabled></select></label>
+      </div>
+      <label class="f" id="wrapProd" hidden>Produto (denominação)<select id="selProd"></select></label>
+      <div id="specBox" class="spec" hidden></div>
+      <div id="semEspBox" class="note warn" hidden><span><strong>Esta cartolina não tem espessura na base de dados.</strong> Conte uma amostra de 100 folhas para calcular a palete.</span><button class="btn primary" id="toSample">Contar amostra de 100 folhas</button></div>
+      <div id="emptyDb" class="hint" hidden>A base de dados ainda não foi importada. Use a contagem por amostra.</div>
+      <div><button class="btn ghost" id="toManual">Não encontro a cartolina na lista →</button></div>
+    </div>
+
+    <div class="card" id="cardManual" hidden>
+      <div class="step"><span class="n">1</span><h2 id="manTitle">Cartolina não encontrada: contar amostra</h2></div>
+      <div class="note warn"><span>Conte <strong>100 folhas</strong> da palete, alinhe-as e meça a altura dessa amostra sem a comprimir. A aplicação calcula a espessura a partir dessa medida.</span></div>
+      <div class="grid">
+        <label class="f">Fornecedor<input id="mForn" list="dlForn" autocomplete="off" placeholder="ex. STORAENSO"></label>
+        <label class="f">Gramagem (g/m²)<input id="mGram" inputmode="decimal" autocomplete="off" placeholder="ex. 300"></label>
+      </div>
+      <label class="f">Produto (denominação) <span class="h">como aparece na etiqueta da palete</span><input id="mDen" autocomplete="off" placeholder="ex. Performa Natural"></label>
+      <div class="grid">
+        <label class="f">Altura das folhas contadas (mm)<input id="mH" class="big" inputmode="decimal" autocomplete="off" placeholder="0,0"></label>
+        <label class="f">Folhas contadas<input id="mN" inputmode="numeric" autocomplete="off" value="100"></label>
+      </div>
+      <div id="mSpec" class="spec" hidden></div>
+      <datalist id="dlForn"></datalist>
+      <div><button class="btn ghost" id="toLista">← Voltar à lista de cartolinas</button></div>
+    </div>
+
+    <div class="card">
+      <div class="step"><span class="n">2</span><h2>Altura da pilha</h2></div>
+      <span class="hint">Meça só as folhas, do topo da palete de madeira ao topo da pilha.</span>
+      <div class="row" style="align-items:stretch">
+        <input id="altura" class="big" inputmode="decimal" autocomplete="off" placeholder="0" style="flex:1 1 180px" aria-label="Altura da pilha">
+        <div class="seg" role="group" aria-label="Unidade">
+          <button id="uMm" aria-pressed="true">mm</button><button id="uCm" aria-pressed="false">cm</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="result" id="result" aria-live="polite"></div>
+
+    <div class="card" id="cardNotify" hidden>
+      <h2>Avisar o responsável da base de dados</h2>
+      <span class="hint">O pedido fica registado e pode enviar o email abaixo, para que a cartolina seja acrescentada ou corrigida no Excel.</span>
+      <div class="row"><button class="btn primary" id="btnPedido">Registar pedido</button><span id="pedStatus" class="hint"></span></div>
+      <div id="mailBox" hidden style="display:flex;flex-direction:column;gap:10px">
+        <span>Para: <b id="mailTo"></b></span>
+        <div class="mail" id="mailBody"></div>
+        <div class="row"><a class="btn" id="mailLink" href="#" target="_blank" rel="noopener">Abrir no email</a><button class="btn" id="mailCopy">Copiar mensagem</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== CONVERTER ===================== -->
+  <section id="v-converter" class="view" hidden>
+    <div class="dir" role="group" aria-label="Sentido da conversão">
+      <button id="dirFK" aria-pressed="true"><b>Folhas → Kg</b><span>Sei as folhas, quero o peso</span></button>
+      <button id="dirKF" aria-pressed="false"><b>Kg → Folhas</b><span>Sei o peso, quero as folhas</span></button>
+    </div>
+
+    <div class="card">
+      <div class="step"><span class="n">1</span><h2>Cartolina <span class="opt">opcional</span></h2></div>
+      <span class="hint">Escolher a cartolina preenche a gramagem. Pode saltar este passo e escrever a gramagem diretamente.</span>
+      <div class="grid">
+        <label class="f">Tipo de cartolina<select id="cTipo"></select></label>
+        <label class="f">Cartolina<select id="cProd"></select></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="step"><span class="n">2</span><h2>Gramagem e formato</h2></div>
+      <div class="grid">
+        <label class="f">Gramagem (g/m²)<input id="cGram" inputmode="decimal" autocomplete="off" placeholder="ex. 260" list="dlGram"></label>
+        <div class="f" style="display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:14px">Formato (cm)
+          <div class="fmt"><input id="cL" inputmode="decimal" autocomplete="off" placeholder="77" aria-label="1.ª medida em cm"><span class="x">×</span><input id="cW" inputmode="decimal" autocomplete="off" placeholder="85,1" aria-label="2.ª medida em cm"></div>
+        </div>
+      </div>
+      <datalist id="dlGram"></datalist>
+      <div id="cSpec" class="spec" hidden></div>
+    </div>
+
+    <div class="card">
+      <div class="step"><span class="n">3</span><h2 id="cQtyTitle">Número de folhas</h2></div>
+      <div class="row" style="align-items:stretch">
+        <input id="cQty" class="big" inputmode="decimal" autocomplete="off" placeholder="0" style="flex:1 1 180px" aria-label="Quantidade">
+        <span class="unit" id="cUnit">folhas</span>
+      </div>
+    </div>
+
+    <div class="result" id="cResult" aria-live="polite"></div>
+  </section>
+
+  <!-- ===================== PEDIDOS ===================== -->
+  <section id="v-pedidos" class="view" hidden>
+    <div class="card">
+      <h2>Responsável pela base de dados</h2>
+      <span class="hint">Recebe os emails quando um operador não encontra uma cartolina ou ela não tem espessura.</span>
+      <div class="grid">
+        <label class="f">Nome<input id="cfgNome" autocomplete="off"></label>
+        <label class="f">Email<input id="cfgEmail" type="email" autocomplete="off"></label>
+      </div>
+      <div class="row"><button class="btn primary" id="cfgSave">Guardar</button><span class="hint" id="cfgStatus"></span></div>
+    </div>
+    <div class="card">
+      <h2>Pedidos dos operadores</h2>
+      <span class="hint">Depois de atualizar o Excel, importe a nova versão no separador Base de dados e marque o pedido como resolvido.</span>
+      <div class="list" id="pedList"></div>
+    </div>
+  </section>
+
+  <!-- ===================== BASE ===================== -->
+  <section id="v-base" class="view" hidden>
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2>Base de dados de cartolinas</h2>
+        <button class="btn primary" id="btnImp">Importar nova versão do Excel</button>
+      </div>
+      <span class="hint" id="metaLine"></span>
+      <div class="stats" id="stats"></div>
+    </div>
+
+    <div class="card" id="cardImport" hidden>
+      <h2>Importar Excel</h2>
+      <ol class="hint" style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px">
+        <li>Abra o ficheiro oficial no SharePoint: <a href="https://hinojosagroup.sharepoint.com/sites/Intranet/Graphicsleader/Produccion/QM%20%20Quality%20Management/Controlo%20de%20Materiais/Base%20de%20dados%20de%20Cartolinas%20-%20Fornecedores.xlsx" target="_blank" rel="noopener">QM Quality Management › Controlo de Materiais › Base de dados de Cartolinas - Fornecedores</a>.</li>
+        <li>No Excel, escolha <b>Ficheiro › Guardar como › Transferir uma cópia</b>.</li>
+        <li>Escolha abaixo o ficheiro transferido. A aplicação lê as colunas Tipo, Denominação, Fornecedor MP, Gramagem e Espessura (nominal, máx. e mín.) tal como estão e substitui a versão atual.</li>
+      </ol>
+      <input type="file" id="impFile" accept=".xlsx,.xlsm,.xls,.csv">
+      <div id="impBox" hidden style="display:flex;flex-direction:column;gap:12px">
+        <label class="f">Folha do Excel<select id="impSheet"></select></label>
+        <div id="impSummary"></div>
+        <div class="row"><button class="btn primary" id="impGo">Substituir base de dados</button><button class="btn" id="impCancel">Cancelar</button><span class="hint" id="impStatus"></span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="filters" id="filters">
+        <button data-f="all" aria-pressed="true">Todas</button>
+        <button data-f="sem_esp">Sem espessura</button>
+        <button data-f="tol">Tolerância corrigida</button>
+      </div>
+      <input id="search" placeholder="Pesquisar fornecedor, produto, tipo ou gramagem" autocomplete="off">
+      <div class="tablewrap"><table><thead><tr><th>Fornecedor</th><th>Produto</th><th>Tipo</th><th class="n">g/m²</th><th class="n">Esp. nom. µm</th><th class="n">Esp. mín. µm</th><th class="n">Esp. máx. µm</th><th>Estado</th></tr></thead><tbody id="bdBody"></tbody></table></div>
+      <span class="hint" id="bdMore"></span>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="js/db-local.js"></script>
+<script>
+/* Core logic: reading the "Base de dados de Cartolinas - Fornecedores" Excel and computing sheet counts.
+   Row format stored in the app: [tipo, denominacao, fornecedor, gram, gramMax, gramMin, esp, espMax, espMin] */
+var Core = (function(){
+  var FIELDS = ['tipo','den','forn','g','gmax','gmin','e','emax','emin'];
+  var HEAD = {
+    tipo:/^tipo\b/, den:/^denomina/, forn:/^fornecedor/,
+    g:/^gramagem( nominal)?\b(?!.*(max|min))/, gmax:/^gramagem.*max/, gmin:/^gramagem.*min/,
+    e:/^espessura( nominal)?\b(?!.*(max|min))/, emax:/^espessura.*max/, emin:/^espessura.*min/
+  };
+  var TOL_DEFAULT = 0.05;
+
+  function norm(s){ return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim(); }
+  function clean(s){ return String(s == null ? '' : s).replace(/\s+/g,' ').trim(); }
+  function num(v){
+    if (typeof v === 'number') return isFinite(v) ? v : null;
+    var s = String(v == null ? '' : v).replace(/\s/g,'');
+    if (!s) return null;
+    if (s.indexOf(',') >= 0 && s.indexOf('.') >= 0) s = s.replace(/\./g,'');
+    var m = s.replace(',', '.').match(/-?\d+(\.\d+)?/);
+    return m ? parseFloat(m[0]) : null;
+  }
+  function r2(v){ return v == null ? null : Math.round(v*100)/100; }
+
+  /* Find the header row and column positions (column order differs between sheets). */
+  function findHeader(aoa){
+    for (var i = 0; i < Math.min(aoa.length, 30); i++){
+      var row = aoa[i] || [], map = {};
+      for (var c = 0; c < row.length; c++){
+        var h = norm(row[c]); if (!h) continue;
+        for (var k in HEAD){ if (map[k] === undefined && HEAD[k].test(h)) { map[k] = c; break; } }
+      }
+      if (map.forn !== undefined && map.g !== undefined && map.e !== undefined) return { index:i, map:map };
+    }
+    return null;
+  }
+
+  /* Parse one sheet (array of arrays) into stored rows. */
+  function parseSheet(aoa){
+    var h = findHeader(aoa); if (!h) return null;
+    var rows = [], semForn = 0;
+    for (var i = h.index + 1; i < aoa.length; i++){
+      var r = aoa[i] || [];
+      var get = function(k){ return h.map[k] === undefined ? null : r[h.map[k]]; };
+      var forn = clean(get('forn')), den = clean(get('den')), g = num(get('g'));
+      if (!forn && !den && g == null) continue;          // empty line
+      if (!forn || !(g > 0)) { semForn++; continue; }     // cannot be selected by supplier + grammage
+      rows.push([clean(get('tipo')), den, forn, r2(g), r2(num(get('gmax'))), r2(num(get('gmin'))), r2(num(get('e'))), r2(num(get('emax'))), r2(num(get('emin')))]);
+    }
+    return { rows:rows, ignored:semForn, headerRow:h.index + 1 };
+  }
+
+  /* Effective thickness and tolerance for one row, with data checks. */
+  function evaluate(a){
+    var it = { tipo:a[0]||'', den:a[1]||'', forn:a[2], g:a[3], e:a[6], emaxRaw:a[7], eminRaw:a[8] };
+    it.fornKey = norm(it.forn).toUpperCase();
+    var e = a[6], mx = a[7], mn = a[8];
+    if (!(e >= 30 && e <= 3000)) { it.status = 'sem_esp'; return it; }
+    var okMax = mx != null && mx >= e && mx <= e*1.5;
+    var okMin = mn != null && mn <= e && mn >= e*0.5;
+    it.nom = e;
+    if (okMax && okMin){ it.max = mx; it.min = mn; it.status = 'ok'; }
+    else if (okMin){ it.min = mn; it.max = r2(2*e - mn); it.status = 'tol_corrigida'; it.nota = 'Espessura máx. inválida na base de dados ('+fmtRaw(mx)+'); usada a mesma margem da mínima.'; }
+    else if (okMax){ it.max = mx; it.min = r2(2*e - mx); it.status = 'tol_corrigida'; it.nota = 'Espessura mín. inválida na base de dados ('+fmtRaw(mn)+'); usada a mesma margem da máxima.'; }
+    else { it.min = r2(e*(1-TOL_DEFAULT)); it.max = r2(e*(1+TOL_DEFAULT)); it.status = 'tol_estimada'; it.nota = 'Sem tolerância válida na base de dados; usada ±5%.'; }
+    return it;
+  }
+  function fmtRaw(v){ return v == null ? 'vazia' : String(v).replace('.', ','); }
+
+  function buildModel(rows){
+    var items = rows.map(function(a, i){ var it = evaluate(a); it.i = i; return it; });
+    var sup = {};
+    items.forEach(function(it){
+      var s = sup[it.fornKey] || (sup[it.fornKey] = { key:it.fornKey, names:{}, count:0 });
+      s.count++; s.names[it.forn] = (s.names[it.forn] || 0) + 1;
+    });
+    var suppliers = Object.keys(sup).map(function(k){
+      var s = sup[k], best = null;
+      for (var n in s.names) if (!best || s.names[n] > s.names[best]) best = n;
+      return { key:k, name:best, count:s.count };
+    }).sort(function(a,b){ return a.name.localeCompare(b.name, 'pt', {sensitivity:'base'}); });
+    var stats = { total:items.length, ok:0, sem_esp:0, tol_corrigida:0, tol_estimada:0 };
+    items.forEach(function(it){ stats[it.status]++; });
+    return { items:items, suppliers:suppliers, stats:stats };
+  }
+
+  /* Sheets: H = stack height in mm, thickness in µm. */
+  function calc(Hmm, nom, min, max){
+    var n = Math.round(Hmm*1000/nom);
+    var lo = Math.floor(Hmm*1000/max), hi = Math.ceil(Hmm*1000/min);
+    if (lo > n) lo = n; if (hi < n) hi = n;
+    return { n:n, lo:lo, hi:hi, pm:Math.max(n-lo, hi-n) };
+  }
+  /* Sample: N sheets measure h mm; ±0.5 mm reading error. */
+  function sample(h, N){
+    if (!(h > 0) || !(N > 0)) return null;
+    return { nom:h*1000/N, min:Math.max(1, (h-0.5)*1000/N), max:(h+0.5)*1000/N };
+  }
+
+  /* Split rows into chunks that stay well under the 256 KiB document limit. */
+  function chunk(rows, maxBytes){
+    maxBytes = maxBytes || 150000; var out = [], cur = [], size = 0;
+    rows.forEach(function(r){ var s = JSON.stringify(r).length + 1; if (cur.length && size + s > maxBytes){ out.push(cur); cur = []; size = 0; } cur.push(r); size += s; });
+    if (cur.length) out.push(cur);
+    return out;
+  }
+
+  return { norm:norm, num:num, parseSheet:parseSheet, findHeader:findHeader, evaluate:evaluate, buildModel:buildModel, calc:calc, sample:sample, chunk:chunk, FIELDS:FIELDS };
+})();
+if (typeof module !== 'undefined') module.exports = Core;
+
+</script>
+<script>
+(function(){
+var $ = function(id){ return document.getElementById(id); };
+var S = { db:null, user:null, uid:null, admin:false, model:null, meta:null, bdDocs:[], ped:[], cfg:{}, mode:'lista', motivo:'nao_encontrada', unit:'mm', imp:null, filter:'all', lastKey:'' };
+function fmt(n,d){ d=d||0; return Number(n).toLocaleString('pt-PT',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function fmtA(n){ return n==null||isNaN(n) ? '—' : fmt(n, n%1 ? 1 : 0); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+var num = Core.num;
+function sleep(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
+async function retry(fn){ for(var i=0;i<5;i++){ try{ return await fn(); }catch(e){ if(e&&(e.code==='resource_exhausted'||e.code==='unavailable')){ await sleep(500*(i+1)+Math.random()*400); continue; } throw e; } } throw {code:'resource_exhausted'}; }
+function toast(t){ var el=$('toast'); el.textContent=t; el.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(function(){ el.hidden=true; },2600); }
+function save(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+function load(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function when(iso){ try{ return new Date(iso).toLocaleString('pt-PT',{dateStyle:'short',timeStyle:'short'}); }catch(e){ return ''; } }
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tab').forEach(function(b){ b.onclick=function(){ showTab(b.dataset.tab); }; });
+function showTab(t){ document.querySelectorAll('.tab').forEach(function(b){ b.setAttribute('aria-selected', b.dataset.tab===t); }); ['contar','converter','pedidos','base'].forEach(function(v){ $('v-'+v).hidden = v!==t; });
+  $('subtitle').textContent = t==='converter' ? 'Converter quilos em folhas de cartolina, e o inverso' : 'Folhas de cartolina por palete, a partir da altura da pilha';
+  save('tab', t==='converter' ? 'converter' : 'contar'); }
+
+/* ---------- operator: selection ---------- */
+function items(){ return S.model ? S.model.items : []; }
+function fillSelect(sel, opts, ph){
+  var cur=sel.value;
+  sel.innerHTML=(ph!=null?'<option value="">'+esc(ph)+'</option>':'')+opts.map(function(o){ return '<option value="'+esc(o.v)+'">'+esc(o.t)+'</option>'; }).join('');
+  if(opts.some(function(o){ return o.v===cur; })) sel.value=cur;
+}
+function renderSelects(){
+  var sf=$('selForn'), sg=$('selGram'), sp=$('selProd'), sup=S.model?S.model.suppliers:[];
+  fillSelect(sf, sup.map(function(s){ return {v:s.key,t:s.name}; }), sup.length?'Escolha o fornecedor':'—');
+  sf.disabled=!sup.length;
+  var rows=items().filter(function(it){ return it.fornKey===sf.value; });
+  var grams=[]; rows.forEach(function(it){ if(grams.indexOf(it.g)<0) grams.push(it.g); }); grams.sort(function(a,b){ return a-b; });
+  fillSelect(sg, grams.map(function(g){ return {v:String(g),t:fmtA(g)+' g/m²'}; }), sf.value?'Escolha a gramagem':'—');
+  sg.disabled=!sf.value;
+  var prods=rows.filter(function(it){ return String(it.g)===sg.value; })
+    .sort(function(a,b){ return a.den.localeCompare(b.den,'pt')||a.tipo.localeCompare(b.tipo); });
+  $('wrapProd').hidden=!prods.length;
+  fillSelect(sp, prods.map(function(it){ return {v:String(it.i), t:(it.den||'(sem denominação)')+(it.tipo?' · '+it.tipo:'')+(it.status==='sem_esp'?' — sem espessura':' — '+fmtA(it.nom)+' µm')}; }), prods.length>1?'Escolha o produto ('+prods.length+' opções)':null);
+  if(prods.length===1) sp.value=String(prods[0].i);
+  $('emptyDb').hidden=!!(S.model&&S.model.items.length);
+  $('dlForn').innerHTML=sup.map(function(s){ return '<option value="'+esc(s.name)+'">'; }).join('');
+  renderResult(); renderConvSelects();
+}
+function selected(){ var v=$('selProd').value; if(v==='' || $('wrapProd').hidden) return null; return items()[+v]||null; }
+$('selForn').onchange=function(){ $('selGram').value=''; $('selProd').value=''; renderSelects(); };
+$('selGram').onchange=function(){ $('selProd').value=''; renderSelects(); };
+$('selProd').onchange=renderResult;
+$('toManual').onclick=function(){ setMode('manual','nao_encontrada'); };
+$('toLista').onclick=function(){ setMode('lista'); };
+$('toSample').onclick=function(){ var it=selected(); setMode('manual','sem_espessura', it); };
+function setMode(m, motivo, it){
+  S.mode=m; if(motivo) S.motivo=motivo;
+  $('cardLista').hidden=m!=='lista'; $('cardManual').hidden=m!=='manual';
+  if(m==='manual'){
+    $('manTitle').textContent = S.motivo==='sem_espessura' ? 'Cartolina sem espessura: contar amostra' : 'Cartolina não encontrada: contar amostra';
+    var sup = S.model && S.model.suppliers.find(function(s){ return s.key===$('selForn').value; });
+    if(it){ $('mForn').value=it.forn; $('mGram').value=fmtA(it.g); $('mDen').value=(it.den||'')+(it.tipo?' · '+it.tipo:''); }
+    else { if(sup && !$('mForn').value) $('mForn').value=sup.name; if($('selGram').value && !$('mGram').value) $('mGram').value=$('selGram').value; }
+    resetNotify();
+  }
+  renderResult();
+}
+['mForn','mDen','mGram','mH','mN','altura'].forEach(function(id){ $(id).addEventListener('input', renderResult); });
+['mForn','mDen','mGram','mH','mN'].forEach(function(id){ $(id).addEventListener('input', resetNotify); });
+function setUnit(u){ S.unit=u; $('uMm').setAttribute('aria-pressed',u==='mm'); $('uCm').setAttribute('aria-pressed',u==='cm'); save('unit',u); renderResult(); }
+$('uMm').onclick=function(){ setUnit('mm'); }; $('uCm').onclick=function(){ setUnit('cm'); };
+
+/* ---------- calculation ---------- */
+function heightMm(){ var v=num($('altura').value); if(!(v>0)) return NaN; return S.unit==='cm' ? v*10 : v; }
+function spec(){
+  if(S.mode==='lista'){ var it=selected(); if(!it || it.status==='sem_esp') return null; return {nom:it.nom,min:it.min,max:it.max,src:'bd',it:it}; }
+  var h=num($('mH').value), n=num($('mN').value); var s=Core.sample(h,n); if(!s) return null; s.src='amostra'; s.h=h; s.n=n; return s;
+}
+function renderResult(){
+  var it = S.mode==='lista' ? selected() : null, sp=spec(), H=heightMm(), el=$('result');
+  if(S.mode==='lista'){
+    var hasE = it && it.status!=='sem_esp';
+    $('specBox').hidden=!hasE; $('semEspBox').hidden=!(it && it.status==='sem_esp');
+    if(hasE){
+      $('specBox').innerHTML='<span>Nominal <b>'+fmtA(it.nom)+' µm</b></span><span>Tolerância <b>'+fmtA(it.min)+' – '+fmtA(it.max)+' µm</b></span>'+(it.tipo?'<span>Tipo <b>'+esc(it.tipo)+'</b></span>':'')+
+        (it.status!=='ok'?'<span class="chip warn" title="'+esc(it.nota)+'">Tolerância corrigida</span>':'');
+    }
+  } else {
+    $('mSpec').hidden=!sp;
+    if(sp) $('mSpec').innerHTML='<span>Espessura medida <b>'+fmt(sp.nom)+' µm</b></span><span>Com ±0,5 mm na medição <b>'+fmt(sp.min)+' – '+fmt(sp.max)+' µm</b></span>';
+  }
+  var canNotify = S.mode==='manual' && sp && $('mForn').value.trim() && num($('mGram').value)>0;
+  $('cardNotify').hidden=!canNotify;
+  var head='<span class="lbl">Folhas na palete'+(sp&&sp.src==='amostra'?' · por amostra':'')+'</span>';
+  if(!sp){
+    var msg = S.mode==='lista' ? (it && it.status==='sem_esp' ? 'Sem espessura na base de dados. Conte uma amostra de 100 folhas.' : ($('selForn').value&&$('selGram').value&&!it ? 'Escolha o produto.' : 'Escolha o fornecedor e a gramagem da cartolina.')) : 'Introduza a altura das folhas contadas.';
+    el.innerHTML=head+'<div class="empty">'+esc(msg)+'</div>'; return;
+  }
+  if(!(H>0)){ el.innerHTML=head+'<div class="empty">Introduza a altura da pilha.</div>'; return; }
+  var r=Core.calc(H,sp.nom,sp.min,sp.max);
+  var pos=r.hi>r.lo?((r.n-r.lo)/(r.hi-r.lo))*100:50;
+  el.innerHTML=head+'<div class="num">≈ '+fmt(r.n)+'<small>folhas</small></div>'+
+    '<div class="pm">Margem de erro ± '+fmt(r.pm)+' folhas</div>'+
+    '<div><div class="rbar"><div class="track"></div><div class="mid" style="left:'+pos.toFixed(1)+'%"></div></div>'+
+    '<div class="rlab"><span>mín. '+fmt(r.lo)+'</span><span>'+fmt(r.n)+'</span><span>máx. '+fmt(r.hi)+'</span></div></div>'+
+    '<span class="foot">Pilha de '+fmtA(H)+' mm ÷ '+(sp.src==='amostra'?fmt(sp.nom,1):fmtA(sp.nom))+' µm por folha'+(sp.it?' · '+esc(sp.it.den):'')+'</span>';
+}
+
+/* ---------- converter kg <-> folhas ---------- */
+/* Peso de uma folha (kg) = (medida1 cm / 100) × (medida2 cm / 100) × gramagem g/m² / 1000 */
+var C = { dir: load('convDir')==='kf' ? 'kf' : 'fk' };
+function tipoKey(t){ var k=Core.norm(t).toUpperCase().replace(/\s+/g,' '); if(/^(C|K)RAFT$|^PAPLE KRAFT$/.test(k)) return 'KRAFT'; return k; }
+function convProducts(){
+  var map={}, out=[];
+  items().forEach(function(it){
+    var key=Core.norm(it.den)+'|'+it.fornKey;
+    var p=map[key]; if(!p){ p=map[key]={key:key, den:it.den||'(sem denominação)', forn:it.forn, tipos:{}, grams:[]}; out.push(p); }
+    p.tipos[tipoKey(it.tipo)||'—']=1; if(p.grams.indexOf(it.g)<0) p.grams.push(it.g);
+  });
+  out.forEach(function(p){ p.grams.sort(function(a,b){ return a-b; }); });
+  return out.sort(function(a,b){ return a.den.localeCompare(b.den,'pt',{sensitivity:'base'}) || a.forn.localeCompare(b.forn,'pt'); });
+}
+function renderConvSelects(){
+  var prods=convProducts(), cnt={};
+  prods.forEach(function(p){ for(var t in p.tipos) cnt[t]=(cnt[t]||0)+1; });
+  var tipos=Object.keys(cnt).filter(function(t){ return t!=='—'; }).sort(function(a,b){ return a.localeCompare(b,'pt',{numeric:true}); });
+  fillSelect($('cTipo'), tipos.map(function(t){ return {v:t, t:t+' ('+cnt[t]+')'}; }), prods.length?'Todos os tipos':'—');
+  $('cTipo').disabled=!prods.length;
+  var tv=$('cTipo').value, list=prods.filter(function(p){ return !tv || p.tipos[tv]; });
+  C.prods={}; list.forEach(function(p){ C.prods[p.key]=p; });
+  fillSelect($('cProd'), list.map(function(p){ return {v:p.key, t:p.den+' · '+p.forn}; }), list.length?'Sem cartolina (só gramagem)':'—');
+  $('cProd').disabled=!list.length;
+  renderConvGrams(); renderConv();
+}
+function convProd(){ return (C.prods||{})[$('cProd').value]||null; }
+function renderConvGrams(){
+  var p=convProd();
+  $('dlGram').innerHTML=(p?p.grams:[]).map(function(g){ return '<option value="'+esc(fmtA(g))+'">'; }).join('');
+}
+$('cTipo').onchange=function(){ renderConvSelects(); };
+$('cProd').onchange=function(){
+  var p=convProd(); renderConvGrams();
+  if(p){ var g=num($('cGram').value); if(!(p.grams.indexOf(g)>=0)) $('cGram').value = p.grams.length===1 ? fmtA(p.grams[0]) : ''; if(p.grams.length>1 && !$('cGram').value) $('cGram').focus(); }
+  renderConv();
+};
+['cGram','cL','cW','cQty'].forEach(function(id){ $(id).addEventListener('input', renderConv); });
+function setDir(d){
+  C.dir=d; save('convDir',d);
+  $('dirFK').setAttribute('aria-pressed', d==='fk'); $('dirKF').setAttribute('aria-pressed', d==='kf');
+  $('cQtyTitle').textContent = d==='fk' ? 'Número de folhas' : 'Número de quilos';
+  $('cUnit').textContent = d==='fk' ? 'folhas' : 'kg';
+  $('cQty').value=''; renderConv();
+}
+$('dirFK').onclick=function(){ setDir('fk'); }; $('dirKF').onclick=function(){ setDir('kf'); };
+function fmtKg(v){ return v>=100 ? fmt(v) : v>=10 ? fmt(v,1) : fmt(v,2); }
+function renderConv(){
+  var g=num($('cGram').value), L=num($('cL').value), W=num($('cW').value), q=num($('cQty').value), p=convProd(), el=$('cResult');
+  var okSpec = g>0 && L>0 && W>0, area = okSpec ? (L/100)*(W/100) : 0, kpf = area*g/1000;
+  $('cSpec').hidden=!okSpec;
+  if(okSpec) $('cSpec').innerHTML='<span>Área da folha <b>'+fmt(area,4)+' m²</b></span><span>Peso por folha <b>'+fmt(kpf,4)+' kg</b></span><span>1 000 folhas <b>'+fmtKg(kpf*1000)+' kg</b></span>';
+  var head='<span class="lbl">'+(C.dir==='fk'?'Número de quilos':'Número de folhas')+'</span>';
+  var miss = !(g>0) ? 'Indique a gramagem.' : !(L>0&&W>0) ? 'Indique as duas medidas do formato.' : !(q>0) ? (C.dir==='fk'?'Indique o número de folhas.':'Indique o número de quilos.') : '';
+  if(miss){ el.innerHTML=head+'<div class="empty">'+esc(miss)+'</div>'; return; }
+  var desc=(p?esc(p.den)+' · ':'')+fmtA(g)+' g/m² · '+fmtA(L)+' × '+fmtA(W)+' cm';
+  if(C.dir==='fk'){
+    var kg=q*kpf;
+    el.innerHTML=head+'<div class="num">'+fmtKg(kg)+'<small>kg</small></div>'+
+      '<span class="foot">'+fmt(q)+' folhas × '+fmt(kpf,4)+' kg por folha · '+desc+'</span>';
+  } else {
+    var n=Math.round(q/kpf);
+    el.innerHTML=head+'<div class="num">'+fmt(n)+'<small>folhas</small></div>'+
+      '<span class="foot">'+fmtA(q)+' kg ÷ '+fmt(kpf,4)+' kg por folha · '+desc+'</span>';
+  }
+}
+
+/* ---------- pedido + email ---------- */
+function resetNotify(){ $('mailBox').hidden=true; $('pedStatus').textContent=''; $('btnPedido').disabled=false; }
+function mailSubject(p){ return (p.motivo==='sem_espessura'?'Cartolina sem espessura: ':'Cartolina em falta: ')+p.fornecedor+' · '+(p.denominacao?p.denominacao+' · ':'')+fmtA(p.gramagem)+' g/m²'; }
+function mailText(p){
+  var nome=S.cfg.nome||'';
+  return 'Olá'+(nome?' '+nome:'')+',\n\n'+(p.motivo==='sem_espessura'?'Esta cartolina está na base de dados mas não tem espessura:':'Na contagem de uma palete não foi encontrada esta cartolina na base de dados:')+'\n\n'+
+    'Fornecedor: '+p.fornecedor+'\n'+(p.denominacao?'Produto: '+p.denominacao+'\n':'')+'Gramagem: '+fmtA(p.gramagem)+' g/m²\n\n'+
+    'Medição do operador: '+fmt(p.nAmostra)+' folhas = '+fmtA(p.alturaAmostraMm)+' mm (≈ '+fmt(p.espMedida)+' µm por folha)\n'+
+    (p.folhasEstimadas?'Palete: '+fmtA(p.alturaPilhaMm)+' mm ≈ '+fmt(p.folhasEstimadas)+' folhas\n':'')+
+    'Data: '+when(p.criadoEm)+'\n\nPor favor, atualize o ficheiro "Base de dados de Cartolinas - Fornecedores" com a espessura nominal e a tolerância do fornecedor e importe a nova versão no Contador de Folhas.';
+}
+function showMail(p){
+  var to=S.cfg.email||''; $('mailBox').hidden=false;
+  $('mailTo').textContent=to||'(responsável ainda não definido)';
+  $('mailBody').textContent='Assunto: '+mailSubject(p)+'\n\n'+mailText(p);
+  $('mailLink').href='mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(mailSubject(p))+'&body='+encodeURIComponent(mailText(p));
+  $('mailLink').hidden=!to;
+}
+$('mailCopy').onclick=async function(){
+  var t=$('mailBody').textContent;
+  try{ await navigator.clipboard.writeText(t); toast('Mensagem copiada'); }
+  catch(e){ var r=document.createRange(); r.selectNodeContents($('mailBody')); var s=getSelection(); s.removeAllRanges(); s.addRange(r); toast('Texto selecionado: copie com Ctrl+C'); }
+};
+$('btnPedido').onclick=async function(){
+  var sp=spec(); if(!sp) return; var H=heightMm();
+  var p={motivo:S.motivo, fornecedor:$('mForn').value.trim(), denominacao:$('mDen').value.trim(), gramagem:num($('mGram').value), nAmostra:sp.n, alturaAmostraMm:sp.h,
+    espMedida:Math.round(sp.nom), alturaPilhaMm:H>0?H:null, folhasEstimadas:H>0?Math.round(H*1000/sp.nom):null, estado:'pendente', criadoEm:new Date().toISOString(), operadorId:S.uid||null};
+  $('btnPedido').disabled=true; $('pedStatus').textContent='A registar…';
+  try{ if(!S.db) throw {code:'not_granted'}; await retry(function(){ return S.db.collection('pedidos').add(p); }); $('pedStatus').textContent='Pedido registado.'; }
+  catch(e){ $('pedStatus').textContent = e&&e.code==='invalid_argument' ? 'Sem permissão para registar pedidos. Envie o email abaixo.' : 'Não foi possível registar o pedido. Envie o email abaixo.'; $('btnPedido').disabled=false; }
+  showMail(p);
+};
+
+/* ---------- admin: config ---------- */
+$('cfgSave').onclick=async function(){
+  $('cfgStatus').textContent='A guardar…';
+  try{ await retry(function(){ return S.db.doc('config/geral').set({nome:$('cfgNome').value.trim(), email:$('cfgEmail').value.trim()}); }); $('cfgStatus').textContent='Guardado.'; }
+  catch(e){ $('cfgStatus').textContent='Não foi possível guardar.'; }
+};
+
+/* ---------- admin: pedidos ---------- */
+async function renderPedidos(){
+  var pend=S.ped.filter(function(p){ return p.estado==='pendente'; });
+  $('pedBadge').hidden=!pend.length; $('pedBadge').textContent=pend.length;
+  var list=$('pedList');
+  if(!S.ped.length){ list.innerHTML='<span class="hint">Sem pedidos. Quando um operador não encontrar uma cartolina, o pedido aparece aqui.</span>'; return; }
+  var names={}, ids=[]; S.ped.forEach(function(p){ if(p.operadorId && ids.indexOf(p.operadorId)<0) ids.push(p.operadorId); });
+  if(S.user && ids.length){ try{ var ps=await S.user.profiles(ids); for(var k in ps) names[k]=ps[k].name; }catch(e){} }
+  list.innerHTML=S.ped.slice(0,80).map(function(p){
+    var st=p.estado==='pendente'?'<span class="chip pend">Pendente</span>':p.estado==='resolvido'?'<span class="chip ok">Resolvido</span>':'<span class="chip">Dispensado</span>';
+    var mot=p.motivo==='sem_espessura'?'<span class="chip bad">Sem espessura</span>':'<span class="chip">Não encontrada</span>';
+    return '<div class="item"><div class="row" style="justify-content:space-between"><span class="t">'+esc(p.fornecedor)+(p.denominacao?' · '+esc(p.denominacao):'')+' · '+fmtA(p.gramagem)+' g/m²</span><span class="row" style="gap:6px">'+mot+st+'</span></div>'+
+      '<div class="meta"><span>Medido: '+fmt(p.nAmostra)+' folhas = '+fmtA(p.alturaAmostraMm)+' mm → <b>'+fmt(p.espMedida)+' µm</b></span><span>'+esc(when(p.criadoEm))+'</span>'+(p.operadorId?'<span>'+esc(names[p.operadorId]||'Operador')+'</span>':'')+'</div>'+
+      (p.estado==='pendente'?'<div class="row"><button class="btn primary" data-st="resolvido" data-id="'+esc(p._id)+'">Marcar como resolvido</button><button class="btn" data-st="dispensado" data-id="'+esc(p._id)+'">Dispensar</button></div>':'')+'</div>';
+  }).join('');
+  list.querySelectorAll('[data-st]').forEach(function(b){ b.onclick=async function(){
+    b.disabled=true;
+    try{ await retry(function(){ return S.db.doc('pedidos/'+b.dataset.id).update({estado:b.dataset.st, fechadoEm:new Date().toISOString()}); }); }
+    catch(e){ b.disabled=false; toast('Não foi possível atualizar o pedido'); }
+  }; });
+}
+
+/* ---------- admin: base de dados ---------- */
+function renderBase(){
+  var m=S.model, st=m?m.stats:{total:0,ok:0,sem_esp:0,tol_corrigida:0,tol_estimada:0};
+  $('metaLine').textContent = S.meta ? 'Ficheiro "'+S.meta.ficheiro+'" · folha "'+S.meta.folha+'" · importado em '+when(S.meta.importadoEm) : 'Ainda não foi importado nenhum ficheiro.';
+  $('stats').innerHTML=[[st.total,'cartolinas'],[st.ok,'com espessura e tolerância'],[st.sem_esp,'sem espessura'],[st.tol_corrigida+st.tol_estimada,'tolerância corrigida'],[m?m.suppliers.length:0,'fornecedores']]
+    .map(function(a){ return '<div class="stat"><b>'+fmt(a[0])+'</b><span>'+a[1]+'</span></div>'; }).join('');
+  var q=Core.norm($('search').value), f=S.filter;
+  var rows=items().filter(function(it){
+    if(f==='sem_esp' && it.status!=='sem_esp') return false;
+    if(f==='tol' && !(it.status==='tol_corrigida'||it.status==='tol_estimada')) return false;
+    return !q || Core.norm(it.forn+' '+it.den+' '+it.tipo+' '+it.g).indexOf(q)>=0;
+  });
+  var shown=rows.slice(0,300);
+  $('bdBody').innerHTML = shown.length ? shown.map(function(it){
+    var stc = it.status==='ok'?'<span class="chip ok">OK</span>':it.status==='sem_esp'?'<span class="chip bad">Sem espessura</span>':'<span class="chip warn" title="'+esc(it.nota)+'">Tol. corrigida</span>';
+    var mn = it.status==='sem_esp' ? fmtA(it.eminRaw) : fmtA(it.min) + (it.min!==it.eminRaw?'*':'');
+    var mx = it.status==='sem_esp' ? fmtA(it.emaxRaw) : fmtA(it.max) + (it.max!==it.emaxRaw?'*':'');
+    return '<tr><td>'+esc(it.forn)+'</td><td class="w">'+esc(it.den)+'</td><td>'+esc(it.tipo)+'</td><td class="n">'+fmtA(it.g)+'</td><td class="n">'+fmtA(it.e)+'</td><td class="n">'+mn+'</td><td class="n">'+mx+'</td><td>'+stc+'</td></tr>';
+  }).join('') : '<tr><td colspan="8" class="hint" style="white-space:normal">'+(items().length?'Nenhuma cartolina corresponde à pesquisa.':'Importe o ficheiro Excel da base de dados.')+'</td></tr>';
+  $('bdMore').textContent = (rows.length>300 ? 'A mostrar 300 de '+fmt(rows.length)+'. Refine a pesquisa. ' : '') + (st.tol_corrigida+st.tol_estimada ? '* Valor corrigido pela aplicação porque o valor do Excel é inválido (passe o rato sobre o estado para ver o motivo).' : '');
+}
+$('search').addEventListener('input', renderBase);
+document.querySelectorAll('#filters button').forEach(function(b){ b.onclick=function(){ S.filter=b.dataset.f; document.querySelectorAll('#filters button').forEach(function(x){ x.setAttribute('aria-pressed', x===b); }); renderBase(); }; });
+
+/* ---------- admin: import ---------- */
+function loadXLSX(){ return window.XLSX ? Promise.resolve() : new Promise(function(res,rej){ var s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+$('btnImp').onclick=function(){ $('cardImport').hidden=false; $('impBox').hidden=true; $('impFile').value=''; $('impStatus').textContent=''; $('cardImport').scrollIntoView({behavior:'smooth',block:'start'}); };
+$('impCancel').onclick=function(){ $('cardImport').hidden=true; S.imp=null; };
+$('impFile').onchange=async function(e){
+  var f=e.target.files[0]; if(!f) return; $('impStatus').textContent='A ler o ficheiro…'; $('impBox').hidden=true;
+  try{ await loadXLSX(); }catch(err){ $('impStatus').textContent='Não foi possível carregar o leitor de Excel. Verifique a ligação à internet.'; return; }
+  try{
+    var wb=XLSX.read(await f.arrayBuffer(),{type:'array'}), sheets=[];
+    wb.SheetNames.forEach(function(n){
+      var aoa=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:''});
+      var p=Core.parseSheet(aoa); if(!p || !p.rows.length) return;
+      sheets.push({name:n, parsed:p, model:Core.buildModel(p.rows)});
+    });
+    if(!sheets.length){ $('impStatus').textContent='Não encontrei nenhuma folha com as colunas "Fornecedor MP", "Gramagem Nominal" e "Espessura Nominal".'; return; }
+    sheets.sort(function(a,b){ return b.model.stats.ok-a.model.stats.ok; });
+    S.imp={file:f.name, sheets:sheets};
+    $('impSheet').innerHTML=sheets.map(function(s,i){ return '<option value="'+i+'">'+esc(s.name)+' — '+fmt(s.model.stats.ok)+' cartolinas com espessura</option>'; }).join('');
+    $('impBox').hidden=false; $('impStatus').textContent=''; impSummary();
+  }catch(err){ $('impStatus').textContent='Não foi possível ler o ficheiro. Confirme que é um Excel (.xlsx).'; }
+};
+$('impSheet').onchange=impSummary;
+function impSummary(){
+  var s=S.imp.sheets[+$('impSheet').value], st=s.model.stats;
+  $('impSummary').innerHTML='<div class="note '+(st.ok?'ok':'bad')+'"><span><strong>'+fmt(st.total)+' linhas</strong> de '+fmt(s.model.suppliers.length)+' fornecedores: '+fmt(st.ok)+' prontas a usar, '+fmt(st.sem_esp)+' sem espessura, '+fmt(st.tol_corrigida+st.tol_estimada)+' com tolerância inválida (a app corrige).'+(s.parsed.ignored?' '+fmt(s.parsed.ignored)+' linhas ignoradas por não terem fornecedor ou gramagem.':'')+'</span></div>';
+  $('impGo').disabled=!st.total;
+}
+$('impGo').onclick=async function(){
+  var s=S.imp.sheets[+$('impSheet').value]; if(!S.db) return;
+  $('impGo').disabled=true; $('impStatus').textContent='A importar…';
+  var versao=Date.now().toString(36), chunks=Core.chunk(s.parsed.rows), now=new Date().toISOString();
+  try{
+    for(let i=0;i<chunks.length;i++){ await retry(function(){ return S.db.doc('bd/c_'+versao+'_'+i).set({versao:versao, idx:i, linhas:chunks[i]}); }); }
+    await retry(function(){ return S.db.doc('bd/meta').set({versao:versao, partes:chunks.length, ficheiro:S.imp.file, folha:s.name, total:s.parsed.rows.length, importadoEm:now, importadoPor:S.uid||null}); });
+    var old=S.bdDocs.filter(function(d){ return d.id!=='meta' && d.versao!==versao; });
+    for(var j=0;j<old.length;j++){ try{ await retry(function(){ return S.db.doc('bd/'+old[j].id).delete(); }); }catch(e){} }
+    $('impStatus').textContent=''; $('cardImport').hidden=true; S.imp=null; toast('Base de dados atualizada: '+fmt(s.parsed.rows.length)+' cartolinas');
+  }catch(e){
+    $('impGo').disabled=false;
+    $('impStatus').textContent = e&&e.code==='invalid_argument' ? 'Sem permissão para alterar a base de dados.' : e&&e.code==='quota_exceeded' ? 'A base de dados da aplicação está cheia.' : 'A importação falhou. Tente de novo.';
+  }
+};
+
+/* ---------- data from db ---------- */
+function applyBd(docs){
+  S.bdDocs=docs.map(function(d){ var x=d.data(); return {id:d.id, versao:x.versao, idx:x.idx, linhas:x.linhas, meta:d.id==='meta'?x:null}; });
+  var metaDoc=S.bdDocs.find(function(d){ return d.id==='meta'; });
+  if(!metaDoc){ S.meta=null; S.model=Core.buildModel([]); return refresh(); }
+  var meta=metaDoc.meta, parts=S.bdDocs.filter(function(d){ return d.id!=='meta' && d.versao===meta.versao; }).sort(function(a,b){ return a.idx-b.idx; });
+  if(parts.length<meta.partes) return;                      // new version still arriving: keep the current one
+  var key=meta.versao; S.meta=meta;
+  if(key===S.lastKey) return refresh();
+  S.lastKey=key;
+  var rows=[]; parts.forEach(function(p){ rows=rows.concat(p.linhas||[]); });
+  S.model=Core.buildModel(rows); refresh();
+}
+function refresh(){ $('loading').hidden=true; renderSelects(); if(S.admin) renderBase(); }
+
+/* ---------- boot ---------- */
+setUnit(load('unit')==='cm'?'cm':'mm'); setMode('lista'); setDir(C.dir); renderSelects(); if(load('tab')==='converter') showTab('converter');
+(async function(){
+  var use = window.claude && window.claude.use ? window.claude.use.bind(window.claude) : function(){ return Promise.resolve(null); };
+  var got = await Promise.all([use('db'), use('user')]);
+  S.db=got[0]; S.user=got[1];
+  if(!S.db){ $('loading').hidden=true; $('dbBanner').hidden=false; setMode('manual','nao_encontrada'); return; }
+  if(S.user){ S.uid=await S.user.id(); S.admin=await S.user.canEdit(); }
+  document.querySelectorAll('.tab[data-tab="pedidos"],.tab[data-tab="base"]').forEach(function(t){ t.hidden=!S.admin; });
+  S.db.collection('bd').onSnapshot(function(s){ applyBd(s.docs); }, function(){ $('loading').textContent='Não foi possível carregar a base de dados. Recarregue a página.'; });
+  S.db.doc('config/geral').onSnapshot(function(s){ S.cfg=s.exists?s.data():{}; if(document.activeElement!==$('cfgNome')) $('cfgNome').value=S.cfg.nome||''; if(document.activeElement!==$('cfgEmail')) $('cfgEmail').value=S.cfg.email||''; }, function(){});
+  if(S.admin){ renderBase(); S.db.collection('pedidos').orderBy('criadoEm','desc').limit(200).onSnapshot(function(s){ S.ped=s.docs.map(function(d){ var x=Object.assign({}, d.data()); x._id=d.id; return x; }); renderPedidos(); }, function(){}); }
+})();
+})();
+</script>
+
+</body></html>
