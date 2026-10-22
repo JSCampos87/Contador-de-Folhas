@@ -236,6 +236,7 @@ tr:last-child td{border-bottom:0}
         <label class="f">Email<input id="cfgEmail" type="email" autocomplete="off"></label>
       </div>
       <div class="row"><button class="btn primary" id="cfgSave">Guardar</button><span class="hint" id="cfgStatus"></span></div>
+      <div id="mailAutoInfo"></div>
     </div>
     <div class="card">
       <h2>Pedidos dos operadores</h2>
@@ -284,6 +285,7 @@ tr:last-child td{border-bottom:0}
 </div>
 <div class="toast" id="toast" hidden></div>
 
+<script src="config.js"></script>
 <script src="js/db-local.js"></script>
 <script>
 /* Core logic: reading the "Base de dados de Cartolinas - Fornecedores" Excel and computing sheet counts.
@@ -600,7 +602,38 @@ $('btnPedido').onclick=async function(){
   try{ if(!S.db) throw {code:'not_granted'}; await retry(function(){ return S.db.collection('pedidos').add(p); }); $('pedStatus').textContent='Pedido registado.'; }
   catch(e){ $('pedStatus').textContent = e&&e.code==='invalid_argument' ? 'Sem permissão para registar pedidos. Envie o email abaixo.' : 'Não foi possível registar o pedido. Envie o email abaixo.'; $('btnPedido').disabled=false; }
   showMail(p);
+  if(EJ() && S.cfg.email){
+    $('pedStatus').textContent+=' A enviar email…';
+    try{ await sendMail([S.cfg.email], mailSubject(p), mailText(p)+'\n\nMensagem automática do Contador de Folhas.');
+      $('pedStatus').textContent='Pedido registado e email enviado a '+S.cfg.email+'.'; $('mailBox').hidden=true; toast('Email enviado ao responsável'); }
+    catch(e){ $('pedStatus').textContent='Pedido registado, mas o email automático falhou ('+e.message+'). Envie o email abaixo.'; }
+  }
 };
+
+/* ---------- email automático (EmailJS, igual à app PCV Ferramentas) ----------
+   Só funciona na versão GitHub: o claude.ai bloqueia ligações a serviços externos.
+   Configuração em config.js: window.CF_CONFIG ou window.PCV_CONFIG = {emailjs:{publicKey, serviceId, templateId}}.
+   O modelo no EmailJS usa: Para = {{to_email}}, Assunto = {{subject}}, Corpo = {{message}}. */
+function EJ(){ var l=[window.CF_CONFIG,window.PCV_CONFIG]; for(var i=0;i<l.length;i++){ var c=l[i]&&l[i].emailjs; if(c&&c.publicKey&&c.serviceId&&c.templateId) return c; } return null; }
+async function sendMail(to, subject, message){
+  var c=EJ(); if(!c) throw new Error('envio automático não configurado');
+  var res=await fetch('https://api.emailjs.com/api/v1.0/email/send',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({service_id:c.serviceId,template_id:c.templateId,user_id:c.publicKey,template_params:{to_email:to.join(','),subject:subject,message:message,reply_to:to[0]||''}})});
+  if(!res.ok) throw new Error('EmailJS '+res.status);
+}
+function renderMailAuto(){
+  var c=EJ();
+  $('btnPedido').textContent = c ? 'Registar pedido e enviar email' : 'Registar pedido';
+  $('mailAutoInfo').innerHTML = c ? '<div class="note ok"><span><strong>Envio automático ativo</strong> (EmailJS · '+esc(c.serviceId)+'). Os pedidos dos operadores chegam diretamente a este email.</span><div class="row"><button class="btn" id="mailTest">Enviar email de teste</button><span class="hint" id="mailTestSt"></span></div></div>'
+    : '<div class="note warn"><span><strong>Envio manual.</strong> O envio automático não está configurado (ficheiro config.js). O operador envia o email com “Abrir no email” ou “Copiar mensagem”.</span></div>';
+  var t=$('mailTest'); if(t) t.onclick=async function(){
+    var to=$('cfgEmail').value.trim(); if(!to){ $('mailTestSt').textContent='Indique o email acima.'; return; }
+    t.disabled=true; $('mailTestSt').textContent='A enviar…';
+    try{ await sendMail([to],'Contador de Folhas: email de teste','Teste de envio automático do Contador de Folhas.\n\nSe recebeu esta mensagem, os pedidos dos operadores vão chegar a este email.'); $('mailTestSt').textContent='Enviado para '+to+'.'; }
+    catch(e){ $('mailTestSt').textContent='Falhou: '+e.message; }
+    t.disabled=false;
+  };
+}
 
 /* ---------- admin: config ---------- */
 $('cfgSave').onclick=async function(){
@@ -714,7 +747,7 @@ function applyBd(docs){
 function refresh(){ $('loading').hidden=true; renderSelects(); if(S.admin) renderBase(); }
 
 /* ---------- boot ---------- */
-setUnit(load('unit')==='cm'?'cm':'mm'); setMode('lista'); setDir(C.dir); renderSelects(); if(load('tab')==='converter') showTab('converter');
+setUnit(load('unit')==='cm'?'cm':'mm'); setMode('lista'); setDir(C.dir); renderSelects(); renderMailAuto(); if(load('tab')==='converter') showTab('converter');
 (async function(){
   var use = window.claude && window.claude.use ? window.claude.use.bind(window.claude) : function(){ return Promise.resolve(null); };
   var got = await Promise.all([use('db'), use('user')]);
@@ -723,7 +756,7 @@ setUnit(load('unit')==='cm'?'cm':'mm'); setMode('lista'); setDir(C.dir); renderS
   if(S.user){ S.uid=await S.user.id(); S.admin=await S.user.canEdit(); }
   document.querySelectorAll('.tab[data-tab="pedidos"],.tab[data-tab="base"]').forEach(function(t){ t.hidden=!S.admin; });
   S.db.collection('bd').onSnapshot(function(s){ applyBd(s.docs); }, function(){ $('loading').textContent='Não foi possível carregar a base de dados. Recarregue a página.'; });
-  S.db.doc('config/geral').onSnapshot(function(s){ S.cfg=s.exists?s.data():{}; if(document.activeElement!==$('cfgNome')) $('cfgNome').value=S.cfg.nome||''; if(document.activeElement!==$('cfgEmail')) $('cfgEmail').value=S.cfg.email||''; }, function(){});
+  S.db.doc('config/geral').onSnapshot(function(s){ S.cfg=Object.assign({}, (window.CF_CONFIG||{}).responsavel||{}, s.exists?s.data():{}); if(!S.cfg.email) S.cfg.email=((window.CF_CONFIG||{}).responsavel||{}).email||''; if(document.activeElement!==$('cfgNome')) $('cfgNome').value=S.cfg.nome||''; if(document.activeElement!==$('cfgEmail')) $('cfgEmail').value=S.cfg.email||''; }, function(){});
   if(S.admin){ renderBase(); S.db.collection('pedidos').orderBy('criadoEm','desc').limit(200).onSnapshot(function(s){ S.ped=s.docs.map(function(d){ var x=Object.assign({}, d.data()); x._id=d.id; return x; }); renderPedidos(); }, function(){}); }
 })();
 })();
